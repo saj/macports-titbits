@@ -1,0 +1,35 @@
+#!/usr/bin/env python3
+
+import tkinter
+from functools import partial
+
+
+PORTDBPATH = "/opt/local/var/macports"
+
+
+def compose(initial, *funcs):
+    v = initial
+    for f in funcs:
+        v = f(v)
+    return v
+
+
+tcl       = tkinter.Tcl()
+splitlist = tcl.splitlist
+splitdict = partial(tkinter._splitdict, tcl)
+
+tcl.eval(f"""\
+set cachefd [open {PORTDBPATH}/cache/pingtimes r]
+set cache [dict create {{*}}[gets $cachefd]]
+close $cachefd
+""")
+
+cache = compose(tcl.call('set', 'cache'),
+                partial(splitdict, conv=splitlist),
+                lambda d: d.items(),
+                lambda d: ((k, (float(v[0]), int(v[1]))) for k, v in d),
+                partial(sorted, key=lambda v: v[1][0]),  # rtt
+                tuple)
+
+for name, v in cache:
+    print(f"{v[0]: >9.3f}\t{name}")
